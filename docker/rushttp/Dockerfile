@@ -1,7 +1,7 @@
 FROM rust:latest
 
 RUN apt update -y && \
-	apt install -y build-essential git
+	apt install -y build-essential git iproute2 iputils-ping net-tools
 
 RUN git clone https://github.com/terassyi/rushttp.git && \
 	cd rushttp && \

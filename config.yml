@@ -25,7 +25,7 @@ nodes:
     image: slankdev/frr
     interfaces:
       - { name: net0, type: direct, args: R0#net1 }
-      - { name: net1, type: direct, args: R4#net1 }
+      - { name: net1, type: direct, args: R4#net0 }
   - name: R3
     image: slankdev/frr
     interfaces:
@@ -53,18 +53,21 @@ nodes:
     interfaces:
       - { name: net0, type: direct, args: R4#net1 }
   - name: S0 
-    image: nginx
+    image: terassyi/nginx
+    buildfile: ./docker/nginx/Dockerfile
     interfaces:
       - { name: net0, type: direct, args: R3#net3 }
   - name: S1 
     image: terassyi/rushttp
     buildfile: ./docker/rushttp/Dockerfile
+    buildcontext: ./docker/rushttp/
     interfaces:
       - { name: net0, type: direct, args: R6#net1 }
   - name:  C0
-    image: debian
+    image: terassyi/debian
+    buildfile: ./docker/debian/Dockerfile
     interfaces:
-      - { name: net0, type: direct, args: R6#net1 }
+      - { name: net0, type: direct, args: R0#net2 }
 
 
 node_configs:
@@ -104,15 +107,15 @@ node_configs:
           -c "router bgp 65520"
           -c "bgp router-id 3.3.3.3"
           -c "neighbor 10.12.0.1 remote-as 65500"
-          -c "neighbor 10.14.0.2 remote-as 65530"
+          -c "neighbor 10.14.0.2 remote-as 65540"
           -c "network 10.12.0.0/16"
           -c "network 10.14.0.0/16"
   - name: R3
     cmds:
       - cmd: /usr/lib/frr/frr start
-      - cmd: ip addr add 10.13.0.2/24 dev net0
-      - cmd: ip addr add 10.18.0.1/24 dev net1
-      - cmd: ip addr add 10.15.0.1/24 dev net2
+      - cmd: ip addr add 10.13.0.2/16 dev net0
+      - cmd: ip addr add 10.18.0.1/16 dev net1
+      - cmd: ip addr add 10.15.0.1/16 dev net2
       - cmd: ip addr add 10.19.10.1/24 dev net3
       - cmd: >-
           vtysh -c "conf t"
@@ -126,14 +129,16 @@ node_configs:
   - name: R4
     cmds:
       - cmd: /usr/lib/frr/frr start
-      - cmd: ip addr add 10.14.0.2/24 dev net0
+      - cmd: ip addr add 10.14.0.2/16 dev net0
       - cmd: ip addr add 10.18.0.2/16 dev net1
+      - cmd: ip addr add 10.17.0.1/16 dev net2
       - cmd: >-
           vtysh -c "conf t"
           -c "router bgp 65540"
           -c "bgp router-id 5.5.5.5"
           -c "neighbor 10.14.0.1 remote-as 65520"
           -c "neighbor 10.18.0.1 remote-as 65530"
+          -c "neighbor 10.17.0.2 remote-as 65570"
           -c "network 10.18.0.0/16"
   - name: R5
     cmds:
@@ -151,7 +156,7 @@ node_configs:
     cmds:
       - cmd: /usr/lib/frr/frr start
       - cmd: ip addr add 10.16.0.2/16 dev net0
-      - cmd: ip addr add 10.20.0.1/24 dev net1
+      - cmd: ip addr add 10.20.1.1/24 dev net1
       - cmd: >-
           vtysh -c "conf t"
           -c "router bgp 65560"
@@ -172,9 +177,20 @@ node_configs:
   - name: S0
     cmds:
       - cmd: ip addr add 10.19.10.2/24 dev net0
+      - cmd: ip route del default
+      - cmd: ip route add default via 10.19.10.1
   - name: S1
     cmds:
       - cmd: ip addr add 10.20.1.15/24 dev net0
+      - cmd: ip route del default
+      - cmd: ip route add default via 10.20.1.1
   - name: C0
     cmds:
-      - cmd: ip addr add 10.10.1.124/24 dev net0
+      - cmd: ip addr add 10.10.0.123/24 dev net0
+      - cmd: ip route del default
+      - cmd: ip route add default via 10.10.0.1
+
+test:
+  - cmds:
+    - cmd: docker exec C0 curl --output - http://10.20.1.15:9999
+    - cmd: docker exec C0 curl http://10.19.10.2
