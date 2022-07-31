@@ -9,13 +9,17 @@
 
 nodes:
   - name: R0
-    # image: terassyi/grp
-    # buildfile: ./docker/grp/Dockerfile
-    image: slankdev/frr
+    image: terassyi/grp
+    buildfile: ./docker/grp/Dockerfile
+    buildcontext: ./docker/grp/
+    mounts:
+      - $(pwd)/../grp:/go/grp
+    # image: slankdev/frr
     interfaces:
       - { name: net0, type: direct, args: R1#net0 }
       - { name: net1, type: direct, args: R2#net0 }
-      - { name: net2, type: direct, args: C0#net0 }
+      - { name: net2, type: direct, args: RR0#net0 }
+      - { name: net3, type: direct, args: RR1#net0 }
   - name: R1
     image: slankdev/frr
     interfaces:
@@ -63,11 +67,32 @@ nodes:
     buildcontext: ./docker/rushttp/
     interfaces:
       - { name: net0, type: direct, args: R6#net1 }
+  - name: RR0
+    image: slankdev/frr
+    interfaces:
+      - { name: net0, type: direct, args: R0#net2 }
+      - { name: net1, type: direct, args: RR2#net2 }
+  - name: RR1
+    image: slankdev/frr
+    interfaces:
+      - { name: net0, type: direct, args: R0#net3 }
+      - { name: net1, type: direct, args: RR3#net0 }
+  - name: RR2
+    image: slankdev/frr
+    interfaces:
+      - { name: net0, type: direct, args: RR0#net1 }
+      - { name: net1, type: direct, args: RR3#net1 }
+  - name: RR2
+    image: slankdev/frr
+    interfaces:
+      - { name: net0, type: direct, args: RR1#net1 }
+      - { name: net1, type: direct, args: RR2#net1 }
+      - { name: net2, type: direct, args: C0#net0 }
   - name:  C0
     image: terassyi/debian
     buildfile: ./docker/debian/Dockerfile
     interfaces:
-      - { name: net0, type: direct, args: R0#net2 }
+      - { name: net0, type: direct, args: RR3#net2 }
 
 
 node_configs:
@@ -76,14 +101,7 @@ node_configs:
       - cmd: ip addr add 10.11.0.1/16 dev net0
       - cmd: ip addr add 10.12.0.1/16 dev net1
       - cmd: ip addr add 10.10.0.1/24 dev net2
-      - cmd: /usr/lib/frr/frr start
-      - cmd: >-
-          vtysh -c "conf t"
-          -c "router bgp 65500"
-          -c "bgp router-id 1.1.1.1"
-          -c "neighbor 10.11.0.2 remote-as 65510"
-          -c "neighbor 10.12.0.2 remote-as 65520"
-          -c "network 10.10.0.0/16"
+      - cmd: ip addr add 10.10.1.1/24 dev net3
   - name: R1
     cmds:
       - cmd: /usr/lib/frr/frr start
@@ -91,10 +109,10 @@ node_configs:
       - cmd: ip addr add 10.13.0.1/16 dev net1
       - cmd: >-
           vtysh -c "conf t"
-          -c "router bgp 65510"
+          -c "router bgp 65501"
           -c "bgp router-id 2.2.2.2"
           -c "neighbor 10.11.0.1 remote-as 65500"
-          -c "neighbor 10.13.0.2 remote-as 65530"
+          -c "neighbor 10.13.0.2 remote-as 65503"
           -c "network 10.11.0.0/24"
           -c "network 10.11.10.0/24"
   - name: R2
@@ -104,10 +122,10 @@ node_configs:
       - cmd: ip addr add 10.14.0.1/16 dev net1
       - cmd: >-
           vtysh -c "conf t"
-          -c "router bgp 65520"
+          -c "router bgp 65502"
           -c "bgp router-id 3.3.3.3"
           -c "neighbor 10.12.0.1 remote-as 65500"
-          -c "neighbor 10.14.0.2 remote-as 65540"
+          -c "neighbor 10.14.0.2 remote-as 65504"
           -c "network 10.12.0.0/16"
           -c "network 10.14.0.0/16"
   - name: R3
@@ -119,11 +137,11 @@ node_configs:
       - cmd: ip addr add 10.19.10.1/24 dev net3
       - cmd: >-
           vtysh -c "conf t"
-          -c "router bgp 65530"
+          -c "router bgp 65503"
           -c "bgp router-id 4.4.4.4"
-          -c "neighbor 10.13.0.1 remote-as 65510"
-          -c "neighbor 10.15.0.2 remote-as 65550"
-          -c "neighbor 10.18.0.2 remote-as 65540"
+          -c "neighbor 10.13.0.1 remote-as 65501"
+          -c "neighbor 10.15.0.2 remote-as 65505"
+          -c "neighbor 10.18.0.2 remote-as 65504"
           -c "network 10.19.10.0/24"
           -c "network 10.13.0.0/16"
   - name: R4
@@ -134,11 +152,11 @@ node_configs:
       - cmd: ip addr add 10.17.0.1/16 dev net2
       - cmd: >-
           vtysh -c "conf t"
-          -c "router bgp 65540"
+          -c "router bgp 65504"
           -c "bgp router-id 5.5.5.5"
-          -c "neighbor 10.14.0.1 remote-as 65520"
-          -c "neighbor 10.18.0.1 remote-as 65530"
-          -c "neighbor 10.17.0.2 remote-as 65570"
+          -c "neighbor 10.14.0.1 remote-as 65502"
+          -c "neighbor 10.18.0.1 remote-as 65503"
+          -c "neighbor 10.17.0.2 remote-as 65507"
           -c "network 10.18.0.0/16"
   - name: R5
     cmds:
@@ -147,10 +165,10 @@ node_configs:
       - cmd: ip addr add 10.16.0.1/16 dev net1
       - cmd: >-
           vtysh -c "conf t"
-          -c "router bgp 65550"
+          -c "router bgp 65505"
           -c "bgp router-id 6.6.6.6"
-          -c "neighbor 10.15.0.1 remote-as 65530"
-          -c "neighbor 10.16.0.2 remote-as 65560"
+          -c "neighbor 10.15.0.1 remote-as 65503"
+          -c "neighbor 10.16.0.2 remote-as 65506"
           -c "network 10.15.0.0/16"
   - name: R6
     cmds:
@@ -159,9 +177,9 @@ node_configs:
       - cmd: ip addr add 10.20.1.1/24 dev net1
       - cmd: >-
           vtysh -c "conf t"
-          -c "router bgp 65560"
+          -c "router bgp 65506"
           -c "bgp router-id 7.7.7.7"
-          -c "neighbor 10.16.0.1 remote-as 65550"
+          -c "neighbor 10.16.0.1 remote-as 65505"
           -c "network 10.16.0.0/16"
           -c "network 10.20.0.0/16"
   - name: R7
@@ -170,9 +188,9 @@ node_configs:
       - cmd: ip addr add 10.17.0.2/16 dev net0
       - cmd: >-
           vtysh -c "conf t"
-          -c "router bgp 65570"
+          -c "router bgp 65507"
           -c "bgp router-id 8.8.8.8"
-          -c "neighbor 10.17.0.1 remote-as 65540"
+          -c "neighbor 10.17.0.1 remote-as 65504"
           -c "network 10.17.0.0/16"
   - name: S0
     cmds:
@@ -184,11 +202,28 @@ node_configs:
       - cmd: ip addr add 10.20.1.15/24 dev net0
       - cmd: ip route del default
       - cmd: ip route add default via 10.20.1.1
+  - name: RR0
+    cmds:
+      - cmd: ip addr add 10.10.0.2/24 dev net0
+      - cmd: ip addr add 10.10.2.1/24 dev net1
+  - name: RR1
+    cmds:
+      - cmd: ip addr add 10.10.1.2/24 dev net0
+      - cmd: ip addr add 10.10.3.1/24 dev net1
+  - name: RR2
+    cmds:
+      - cmd: ip addr add 10.10.2.2/24 dev net0
+      - cmd: ip addr add 10.10.4.1/24 dev net1
+  - name: RR3
+    cmds:
+      - cmd: ip addr add 10.10.3.2/24 dev net0
+      - cmd: ip addr add 10.10.4.2/24 dev net1
+      - cmd: ip addr add 10.10.5.1/24 dev net2
   - name: C0
     cmds:
-      - cmd: ip addr add 10.10.0.123/24 dev net0
+      - cmd: ip addr add 10.10.5.2/24 dev net0
       - cmd: ip route del default
-      - cmd: ip route add default via 10.10.0.1
+      - cmd: ip route add default via 10.10.5.1
 
 test:
   - cmds:

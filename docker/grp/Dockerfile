@@ -9,5 +9,6 @@ RUN git clone https://github.com/terassyi/grp.git && \
 	mv ./grpd /usr/local/bin && \
 	mv ./grp /usr/local/bin
 
+COPY config.yml config.yml
 CMD [ "bash" ]
 
